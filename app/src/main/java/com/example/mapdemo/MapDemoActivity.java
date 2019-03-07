@@ -2,13 +2,21 @@ package com.example.mapdemo;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.DialogInterface;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Looper;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -25,9 +33,14 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.maps.android.ui.IconGenerator;
 
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.RuntimePermissions;
@@ -35,7 +48,8 @@ import permissions.dispatcher.RuntimePermissions;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 @RuntimePermissions
-public class MapDemoActivity extends AppCompatActivity {
+public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMarkerDragListener, GoogleMap.OnMapLongClickListener {
+
 
     private SupportMapFragment mapFragment;
     private GoogleMap map;
@@ -43,6 +57,8 @@ public class MapDemoActivity extends AppCompatActivity {
     Location mCurrentLocation;
     private long UPDATE_INTERVAL = 60000;  /* 60 secs */
     private long FASTEST_INTERVAL = 5000; /* 5 secs */
+
+
 
     private final static String KEY_LOCATION = "location";
 
@@ -85,13 +101,118 @@ public class MapDemoActivity extends AppCompatActivity {
         map = googleMap;
         if (map != null) {
             // Map is ready
+            map.setOnMarkerDragListener(this);
+            map.setOnMapLongClickListener(this);
             Toast.makeText(this, "Map Fragment was loaded properly!", Toast.LENGTH_SHORT).show();
             MapDemoActivityPermissionsDispatcher.getMyLocationWithPermissionCheck(this);
             MapDemoActivityPermissionsDispatcher.startLocationUpdatesWithPermissionCheck(this);
+
+
         } else {
             Toast.makeText(this, "Error - Map was null!!", Toast.LENGTH_SHORT).show();
         }
     }
+
+    // Fires when a long press happens on the map
+
+    @Override
+    public void onMapLongClick(final LatLng point) {
+        Toast.makeText(getApplicationContext(), "Long Press", Toast.LENGTH_LONG).show();
+        // Custom code here...
+        // Display the alert dialog
+        showAlertDialogForPoint(point);
+
+    }
+
+
+    @Override
+    public void onMarkerDragStart(Marker marker) {
+
+    }
+
+    @Override
+    public void onMarkerDrag(Marker marker) {
+    }
+
+    @Override
+    public void onMarkerDragEnd(Marker marker) {
+
+        IconGenerator iconGenerator = new IconGenerator(MapDemoActivity.this);
+        // Possible color options:
+        // STYLE_WHITE, STYLE_RED, STYLE_BLUE, STYLE_GREEN, STYLE_PURPLE, STYLE_ORANGE
+        iconGenerator.setStyle(IconGenerator.STYLE_GREEN);
+        // Swap text here to live inside speech bubble
+        Bitmap bitmap = iconGenerator.makeIcon(marker.getTitle());
+        // Use BitmapDescriptorFactory to create the marker
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+        Marker endMarker = map.addMarker(new MarkerOptions()
+                .position(marker.getPosition())
+                .title(marker.getTitle())
+                .snippet(marker.getSnippet())
+                .icon(icon));
+        endMarker.setDraggable(true);
+    }
+
+    // Display the alert that adds the marker
+    private void showAlertDialogForPoint(final LatLng point) {
+        // inflate message_item.xml view
+        View messageView = LayoutInflater.from(MapDemoActivity.this).
+                inflate(R.layout.message_item, null);
+        // Create alert dialog builder
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+        // set message_item.xml to AlertDialog builder
+        alertDialogBuilder.setView(messageView);
+
+        // Create alert dialog
+        final AlertDialog alertDialog = alertDialogBuilder.create();
+
+        // Configure dialog button (OK)
+        alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, "OK",
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Define color of marker icon
+                        BitmapDescriptor defaultMarker =
+                                BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN);
+                        // Extract content from alert dialog
+                        String title = ((EditText) alertDialog.findViewById(R.id.etTitle)).
+                                getText().toString();
+                        String snippet = ((EditText) alertDialog.findViewById(R.id.etSnippet)).
+                                getText().toString();
+
+                        // Creates and adds marker to the map
+
+                        IconGenerator iconGenerator = new IconGenerator(MapDemoActivity.this);
+
+                        // Possible color options:
+                        // STYLE_WHITE, STYLE_RED, STYLE_BLUE, STYLE_GREEN, STYLE_PURPLE, STYLE_ORANGE
+                        iconGenerator.setStyle(IconGenerator.STYLE_GREEN);
+                        // Swap text here to live inside speech bubble
+                        Bitmap bitmap = iconGenerator.makeIcon(title);
+                        // Use BitmapDescriptorFactory to create the marker
+                        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(bitmap);
+
+                        Marker marker = map.addMarker(new MarkerOptions()
+                                .position(point)
+                                .title(title)
+                                .snippet(snippet)
+                                .icon(icon));
+                        marker.setDraggable(true);
+                    }
+                });
+
+        // Configure dialog button (Cancel)
+        alertDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "Cancel",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) { dialog.cancel(); }
+                });
+
+        // Display the dialog
+        alertDialog.show();
+    }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -125,7 +246,7 @@ public class MapDemoActivity extends AppCompatActivity {
 
     /*
      * Called when the Activity becomes visible.
-    */
+     */
     @Override
     protected void onStart() {
         super.onStart();
@@ -133,7 +254,7 @@ public class MapDemoActivity extends AppCompatActivity {
 
     /*
      * Called when the Activity is no longer visible.
-	 */
+     */
     @Override
     protected void onStop() {
         super.onStop();
@@ -195,6 +316,16 @@ public class MapDemoActivity extends AppCompatActivity {
         SettingsClient settingsClient = LocationServices.getSettingsClient(this);
         settingsClient.checkLocationSettings(locationSettingsRequest);
         //noinspection MissingPermission
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest, new LocationCallback() {
                     @Override
                     public void onLocationResult(LocationResult locationResult) {

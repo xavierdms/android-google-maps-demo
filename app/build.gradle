@@ -28,6 +28,7 @@ dependencies {
     implementation "com.android.support:support-v13:$supportLibVersion" // to remove lint error, found in .idea/libraries
     implementation "com.google.android.gms:play-services-maps:$googlePlayVersion"
     implementation "com.google.android.gms:play-services-location:$googlePlayVersion"
+    implementation 'com.google.maps.android:android-maps-utils:0.5+'
     implementation "com.github.hotchemi:permissionsdispatcher:$permissionDispatcherVersion"
     annotationProcessor "com.github.hotchemi:permissionsdispatcher-processor:$permissionDispatcherVersion"
 }
